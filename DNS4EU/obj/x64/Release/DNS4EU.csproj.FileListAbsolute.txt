@@ -1,0 +1,10 @@
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\bin\x64\Release\DNS4EU.exe.config
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\bin\x64\Release\DNS4EU.exe
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\bin\x64\Release\DNS4EU.pdb
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\obj\x64\Release\DNS4EU.csproj.AssemblyReference.cache
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\obj\x64\Release\DNS4EU.csproj.SuggestedBindingRedirects.cache
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\obj\x64\Release\DNS4EU.Properties.Resources.resources
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\obj\x64\Release\DNS4EU.csproj.GenerateResource.cache
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\obj\x64\Release\DNS4EU.csproj.CoreCompileInputs.cache
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\obj\x64\Release\DNS4EU.exe
+C:\Users\MyAlien\source\repos\DNS4EU\DNS4EU\obj\x64\Release\DNS4EU.pdb
