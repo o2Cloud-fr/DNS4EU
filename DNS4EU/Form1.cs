@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,22 @@ namespace DNS4EU
         private NetworkInterface activeNetworkInterface;
         private string currentPrimaryDns = "";
         private string currentSecondaryDns = "";
+        private Panel headerPanel;
+        private Panel contentPanel;
+        private Panel statusPanel;
+        private Label statusLabel;
+        private ProgressBar statusProgress;
+
+        // Couleurs du thème professionnel
+        private readonly Color PrimaryColor = Color.FromArgb(41, 128, 185);      // Bleu professionnel
+        private readonly Color SecondaryColor = Color.FromArgb(52, 73, 94);      // Gris bleu foncé
+        private readonly Color AccentColor = Color.FromArgb(46, 204, 113);       // Vert success
+        private readonly Color WarningColor = Color.FromArgb(230, 126, 34);      // Orange warning
+        private readonly Color DangerColor = Color.FromArgb(231, 76, 60);        // Rouge danger
+        private readonly Color BackgroundColor = Color.FromArgb(236, 240, 241);  // Gris clair
+        private readonly Color CardColor = Color.White;                          // Blanc pour les cartes
+        private readonly Color TextColor = Color.FromArgb(44, 62, 80);           // Texte principal
+        private readonly Color TextLightColor = Color.FromArgb(127, 140, 141);   // Texte secondaire
 
         // DNS4EU Configurations
         private readonly Dictionary<string, string[]> dnsConfigs = new Dictionary<string, string[]>
@@ -30,168 +47,473 @@ namespace DNS4EU
             { "Sans filtrage", new string[] { "86.54.11.100", "86.54.11.200" } }
         };
 
+        private readonly Dictionary<string, string> dnsDescriptions = new Dictionary<string, string>
+        {
+            { "Protection standard", "Bloque les sites malveillants, de phishing et les logiciels malveillants" },
+            { "Protection + Contrôle parental", "Protection standard + blocage du contenu adulte et inapproprié" },
+            { "Protection + Blocage publicités", "Protection standard + blocage des publicités et trackers" },
+            { "Protection complète (Parental + Pub)", "Toutes les protections : malveillants, adultes, publicités" },
+            { "Sans filtrage", "Résolution DNS standard sans aucun filtrage" }
+        };
+
+        private readonly Dictionary<string, Color> dnsColors = new Dictionary<string, Color>
+        {
+            { "Protection standard", Color.FromArgb(52, 152, 219) },
+            { "Protection + Contrôle parental", Color.FromArgb(155, 89, 182) },
+            { "Protection + Blocage publicités", Color.FromArgb(46, 204, 113) },
+            { "Protection complète (Parental + Pub)", Color.FromArgb(230, 126, 34) },
+            { "Sans filtrage", Color.FromArgb(149, 165, 166) }
+        };
+
         public Form1()
         {
             InitializeComponent();
-            InitializeUI();
+            InitializeModernUI();
             LoadCurrentDnsSettings();
         }
 
-        private void InitializeUI()
+        private void InitializeModernUI()
         {
-            // Configuration de la fenêtre
-            this.Text = "DNS4EU - Configurateur DNS";
-            this.Size = new Size(550, 480);
+            // Configuration de la fenêtre principale
+            this.Text = "DNS4EU - Configurateur DNS Professionnel";
+            this.Size = new Size(1000, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
+            this.MinimumSize = new Size(1000, 800);
+            this.BackColor = BackgroundColor;
+            this.Font = new Font("Segoe UI", 9F);
+
+            // Icône personnalisée
             this.Icon = SystemIcons.Shield;
+
+            CreateHeaderPanel();
+            CreateContentPanel();
+            CreateStatusPanel();
+
+            LoadCurrentDnsSettings();
+        }
+
+        private void CreateHeaderPanel()
+        {
+            // Panel d'en-tête avec dégradé
+            headerPanel = new Panel();
+            headerPanel.Size = new Size(this.ClientSize.Width, 90);
+            headerPanel.Location = new Point(0, 0);
+            headerPanel.Paint += HeaderPanel_Paint;
+
+            // Logo/Icône
+            PictureBox logoBox = new PictureBox();
+            logoBox.Size = new Size(56, 56);
+            logoBox.Location = new Point(25, 17);
+            logoBox.Image = SystemIcons.Shield.ToBitmap();
+            logoBox.SizeMode = PictureBoxSizeMode.Zoom;
+            headerPanel.Controls.Add(logoBox);
 
             // Titre principal
             Label titleLabel = new Label();
-            titleLabel.Text = "DNS4EU - Configurateur DNS";
-            titleLabel.Font = new Font("Arial", 16, FontStyle.Bold);
-            titleLabel.ForeColor = Color.DarkBlue;
+            titleLabel.Text = "DNS4EU";
+            titleLabel.Font = new Font("Segoe UI", 22F, FontStyle.Bold);
+            titleLabel.ForeColor = Color.White;
             titleLabel.AutoSize = true;
-            titleLabel.Location = new Point(20, 20);
-            this.Controls.Add(titleLabel);
+            titleLabel.Location = new Point(95, 15);
+            titleLabel.BackColor = Color.Transparent;
+            headerPanel.Controls.Add(titleLabel);
+
+            // Sous-titre
+            Label subtitleLabel = new Label();
+            subtitleLabel.Text = "Configurateur DNS Professionnel";
+            subtitleLabel.Font = new Font("Segoe UI", 11F);
+            subtitleLabel.ForeColor = Color.FromArgb(200, 255, 255, 255);
+            subtitleLabel.AutoSize = true;
+            subtitleLabel.Location = new Point(95, 50);
+            subtitleLabel.BackColor = Color.Transparent;
+            headerPanel.Controls.Add(subtitleLabel);
+
+            this.Controls.Add(headerPanel);
+        }
+
+        private void HeaderPanel_Paint(object sender, PaintEventArgs e)
+        {
+            // Dégradé bleu pour l'en-tête
+            using (LinearGradientBrush brush = new LinearGradientBrush(
+                headerPanel.ClientRectangle,
+                PrimaryColor,
+                SecondaryColor,
+                LinearGradientMode.Horizontal))
+            {
+                e.Graphics.FillRectangle(brush, headerPanel.ClientRectangle);
+            }
+        }
+
+        private void CreateContentPanel()
+        {
+            contentPanel = new Panel();
+            contentPanel.Size = new Size(this.ClientSize.Width - 50, 580);
+            contentPanel.Location = new Point(25, 110);
+            contentPanel.BackColor = Color.Transparent;
 
             // Description
-            Label descLabel = new Label();
-            descLabel.Text = "Choisissez votre niveau de protection DNS :";
-            descLabel.Font = new Font("Arial", 10);
-            descLabel.AutoSize = true;
-            descLabel.Location = new Point(20, 60);
-            this.Controls.Add(descLabel);
+            Label descLabel = CreateStyledLabel("Choisissez votre niveau de protection DNS :",
+                new Font("Segoe UI", 12F), TextColor);
+            descLabel.Location = new Point(0, 0);
+            contentPanel.Controls.Add(descLabel);
 
-            // GroupBox pour les options DNS
-            GroupBox dnsGroupBox = new GroupBox();
-            dnsGroupBox.Text = "Options de protection";
-            dnsGroupBox.Size = new Size(500, 200);
-            dnsGroupBox.Location = new Point(20, 85);
-            dnsGroupBox.Font = new Font("Arial", 9, FontStyle.Bold);
+            // Panel des options DNS avec style moderne
+            Panel dnsOptionsPanel = CreateStyledPanel("Options de protection", new Size(925, 380), new Point(0, 35));
 
-            // RadioButtons pour chaque configuration DNS
-            int yPos = 25;
+            // Création des cartes d'options DNS avec GroupBox pour regrouper les RadioButtons
+            int yPos = 50;
             bool isFirst = true;
             foreach (var config in dnsConfigs)
             {
-                RadioButton rb = new RadioButton();
-                rb.Name = "rb" + config.Key.Replace(" ", "").Replace("+", "").Replace("(", "").Replace(")", "");
-                rb.Text = config.Key;
-                rb.Font = new Font("Arial", 9);
-                rb.AutoSize = true;
-                rb.Location = new Point(20, yPos);
-                rb.Tag = config.Value;
-
-                if (isFirst)
-                {
-                    rb.Checked = true;
-                    isFirst = false;
-                }
-
-                // Ajout de descriptions pour chaque option
-                Label desc = new Label();
-                desc.Font = new Font("Arial", 8);
-                desc.ForeColor = Color.Gray;
-                desc.AutoSize = true;
-                desc.Location = new Point(40, yPos + 20);
-
-                switch (config.Key)
-                {
-                    case "Protection standard":
-                        desc.Text = "Bloque les sites malveillants et de phishing";
-                        break;
-                    case "Protection + Contrôle parental":
-                        desc.Text = "Protection standard + blocage contenu adulte";
-                        break;
-                    case "Protection + Blocage publicités":
-                        desc.Text = "Protection standard + blocage des publicités";
-                        break;
-                    case "Protection complète (Parental + Pub)":
-                        desc.Text = "Toutes les protections activées";
-                        break;
-                    case "Sans filtrage":
-                        desc.Text = "Aucun filtrage, résolution DNS standard";
-                        break;
-                }
-
-                dnsGroupBox.Controls.Add(rb);
-                dnsGroupBox.Controls.Add(desc);
-                yPos += 35;
+                Panel optionCard = CreateDnsOptionCard(config.Key, config.Value, yPos, isFirst);
+                dnsOptionsPanel.Controls.Add(optionCard);
+                yPos += 65;
+                isFirst = false;
             }
 
-            this.Controls.Add(dnsGroupBox);
+            contentPanel.Controls.Add(dnsOptionsPanel);
 
-            // Informations sur la carte réseau active
-            GroupBox networkInfoBox = new GroupBox();
-            networkInfoBox.Text = "Informations réseau";
-            networkInfoBox.Size = new Size(500, 80);
-            networkInfoBox.Location = new Point(20, 295);
-            networkInfoBox.Font = new Font("Arial", 9, FontStyle.Bold);
+            // Panel d'informations réseau
+            Panel networkInfoPanel = CreateNetworkInfoPanel();
+            networkInfoPanel.Location = new Point(0, 430);
+            contentPanel.Controls.Add(networkInfoPanel);
 
-            Label networkLabel = new Label();
-            networkLabel.Name = "networkLabel";
-            networkLabel.Font = new Font("Arial", 8);
-            networkLabel.AutoSize = true;
-            networkLabel.Location = new Point(10, 25);
-            networkInfoBox.Controls.Add(networkLabel);
-
-            Label currentDnsLabel = new Label();
-            currentDnsLabel.Name = "currentDnsLabel";
-            currentDnsLabel.Font = new Font("Arial", 8);
-            currentDnsLabel.AutoSize = true;
-            currentDnsLabel.Location = new Point(10, 45);
-            networkInfoBox.Controls.Add(currentDnsLabel);
-
-            this.Controls.Add(networkInfoBox);
-
-            // Boutons
-            Button applyButton = new Button();
-            applyButton.Text = "Appliquer les DNS";
-            applyButton.Size = new Size(120, 35);
-            applyButton.Location = new Point(20, 390);
-            applyButton.BackColor = Color.Green;
-            applyButton.ForeColor = Color.White;
-            applyButton.Font = new Font("Arial", 9, FontStyle.Bold);
-            applyButton.Click += ApplyButton_Click;
-            this.Controls.Add(applyButton);
-
-            Button resetButton = new Button();
-            resetButton.Text = "DNS automatique";
-            resetButton.Size = new Size(120, 35);
-            resetButton.Location = new Point(150, 390);
-            resetButton.BackColor = Color.Orange;
-            resetButton.ForeColor = Color.White;
-            resetButton.Font = new Font("Arial", 9, FontStyle.Bold);
-            resetButton.Click += ResetButton_Click;
-            this.Controls.Add(resetButton);
-
-            Button refreshButton = new Button();
-            refreshButton.Text = "Actualiser";
-            refreshButton.Size = new Size(100, 35);
-            refreshButton.Location = new Point(280, 390);
-            refreshButton.BackColor = Color.Blue;
-            refreshButton.ForeColor = Color.White;
-            refreshButton.Font = new Font("Arial", 9, FontStyle.Bold);
-            refreshButton.Click += RefreshButton_Click;
-            this.Controls.Add(refreshButton);
-
-            Button exitButton = new Button();
-            exitButton.Text = "Quitter";
-            exitButton.Size = new Size(100, 35);
-            exitButton.Location = new Point(420, 390);
-            exitButton.BackColor = Color.Gray;
-            exitButton.ForeColor = Color.White;
-            exitButton.Font = new Font("Arial", 9, FontStyle.Bold);
-            exitButton.Click += (s, e) => this.Close();
-            this.Controls.Add(exitButton);
-
-            UpdateNetworkInfo();
+            this.Controls.Add(contentPanel);
         }
 
+        private Panel CreateStyledPanel(string title, Size size, Point location)
+        {
+            Panel panel = new Panel();
+            panel.Size = size;
+            panel.Location = location;
+            panel.BackColor = CardColor;
+            panel.Paint += (s, e) => {
+                // Bordure subtile
+                using (Pen borderPen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                {
+                    e.Graphics.DrawRectangle(borderPen, 0, 0, panel.Width - 1, panel.Height - 1);
+                }
+
+                // Ombre légère
+                using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(20, 0, 0, 0)))
+                {
+                    e.Graphics.FillRectangle(shadowBrush, 2, 2, panel.Width - 2, panel.Height - 2);
+                }
+            };
+
+            // Titre du panel
+            Label titleLabel = CreateStyledLabel(title, new Font("Segoe UI", 12F, FontStyle.Bold), SecondaryColor);
+            titleLabel.Location = new Point(15, 10);
+            panel.Controls.Add(titleLabel);
+
+            return panel;
+        }
+
+        private Panel CreateDnsOptionCard(string configName, string[] dnsServers, int yPos, bool isSelected)
+        {
+            Panel card = new Panel();
+            card.Size = new Size(895, 55);
+            card.Location = new Point(15, yPos);
+            card.BackColor = CardColor;
+            card.Cursor = Cursors.Hand;
+
+            // RadioButton personnalisé - IMPORTANT: ajouter au même parent pour grouping
+            RadioButton rb = new RadioButton();
+            rb.Name = "rb" + configName.Replace(" ", "").Replace("+", "").Replace("(", "").Replace(")", "");
+            rb.Size = new Size(24, 24);
+            rb.Location = new Point(15, 16);
+            rb.Tag = dnsServers;
+            rb.Checked = isSelected;
+            rb.FlatStyle = FlatStyle.Flat;
+            rb.CheckedChanged += RadioButton_CheckedChanged;
+
+            // Indicateur de couleur
+            Panel colorIndicator = new Panel();
+            colorIndicator.Size = new Size(5, 45);
+            colorIndicator.Location = new Point(0, 5);
+            colorIndicator.BackColor = dnsColors[configName];
+            card.Controls.Add(colorIndicator);
+
+            // Nom de la configuration
+            Label nameLabel = CreateStyledLabel(configName, new Font("Segoe UI", 12F, FontStyle.Bold), TextColor);
+            nameLabel.Location = new Point(50, 8);
+            nameLabel.AutoSize = true;
+            card.Controls.Add(nameLabel);
+
+            // Description
+            Label descLabel = CreateStyledLabel(dnsDescriptions[configName],
+                new Font("Segoe UI", 10F), TextLightColor);
+            descLabel.Location = new Point(50, 30);
+            descLabel.AutoSize = true;
+            descLabel.MaximumSize = new Size(600, 0);
+            card.Controls.Add(descLabel);
+
+            // Adresses DNS - positionnées plus à droite avec plus d'espace
+            Label dnsLabel = CreateStyledLabel($"Primaire : {dnsServers[0]}",
+                new Font("Consolas", 10F, FontStyle.Bold), Color.FromArgb(108, 117, 125));
+            dnsLabel.Location = new Point(680, 12);
+            dnsLabel.AutoSize = true;
+            card.Controls.Add(dnsLabel);
+
+            Label dnsSecondaryLabel = CreateStyledLabel($"Secondaire : {dnsServers[1]}",
+                new Font("Consolas", 10F, FontStyle.Bold), Color.FromArgb(108, 117, 125));
+            dnsSecondaryLabel.Location = new Point(680, 32);
+            dnsSecondaryLabel.AutoSize = true;
+            card.Controls.Add(dnsSecondaryLabel);
+
+            card.Controls.Add(rb);
+
+            // Effet de hover
+            card.MouseEnter += (s, e) => {
+                if (!rb.Checked)
+                    card.BackColor = Color.FromArgb(248, 249, 250);
+            };
+            card.MouseLeave += (s, e) => {
+                if (!rb.Checked)
+                    card.BackColor = CardColor;
+            };
+
+            // Clic sur la carte sélectionne le radio button
+            card.Click += (s, e) => {
+                // Décocher tous les autres RadioButtons
+                UncheckAllRadioButtons();
+                rb.Checked = true;
+            };
+
+            return card;
+        }
+
+        private void UncheckAllRadioButtons()
+        {
+            foreach (Control control in contentPanel.Controls)
+            {
+                if (control is Panel && control.Controls.Count > 0)
+                {
+                    foreach (Control panelControl in control.Controls)
+                    {
+                        if (panelControl is Panel card)
+                        {
+                            foreach (Control cardControl in card.Controls)
+                            {
+                                if (cardControl is RadioButton rb)
+                                {
+                                    rb.Checked = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void RadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            RadioButton rb = sender as RadioButton;
+            if (rb != null && rb.Checked)
+            {
+                // Décocher tous les autres RadioButtons quand un est sélectionné
+                UncheckAllRadioButtonsExcept(rb);
+
+                // Mettre à jour l'apparence des cartes
+                UpdateCardSelection();
+            }
+        }
+
+        private void UncheckAllRadioButtonsExcept(RadioButton selectedRadio)
+        {
+            foreach (Control control in contentPanel.Controls)
+            {
+                if (control is Panel && control.Controls.Count > 0)
+                {
+                    foreach (Control panelControl in control.Controls)
+                    {
+                        if (panelControl is Panel card)
+                        {
+                            foreach (Control cardControl in card.Controls)
+                            {
+                                if (cardControl is RadioButton rb && rb != selectedRadio)
+                                {
+                                    rb.Checked = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void UpdateCardSelection()
+        {
+            foreach (Control control in contentPanel.Controls)
+            {
+                if (control is Panel && control.Controls.Count > 0)
+                {
+                    foreach (Control panelControl in control.Controls)
+                    {
+                        if (panelControl is Panel card && card.Controls.OfType<RadioButton>().Any())
+                        {
+                            RadioButton rb = card.Controls.OfType<RadioButton>().First();
+                            if (rb.Checked)
+                            {
+                                card.BackColor = Color.FromArgb(240, 248, 255);
+                            }
+                            else
+                            {
+                                card.BackColor = CardColor;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private Panel CreateNetworkInfoPanel()
+        {
+            Panel networkPanel = CreateStyledPanel("Informations réseau", new Size(925, 120), new Point(0, 0));
+
+            // Icône réseau
+            PictureBox networkIcon = new PictureBox();
+            networkIcon.Size = new Size(32, 32);
+            networkIcon.Location = new Point(20, 50);
+            networkIcon.Image = SystemIcons.Information.ToBitmap();
+            networkIcon.SizeMode = PictureBoxSizeMode.Zoom;
+            networkPanel.Controls.Add(networkIcon);
+
+            Label networkLabel = CreateStyledLabel("Chargement...", new Font("Segoe UI", 11F), TextColor);
+            networkLabel.Name = "networkLabel";
+            networkLabel.Location = new Point(60, 45);
+            networkLabel.AutoSize = true;
+            networkLabel.MaximumSize = new Size(830, 0);
+            networkPanel.Controls.Add(networkLabel);
+
+            Label currentDnsLabel = CreateStyledLabel("DNS : Chargement...", new Font("Consolas", 10F), TextLightColor);
+            currentDnsLabel.Name = "currentDnsLabel";
+            currentDnsLabel.Location = new Point(60, 70);
+            currentDnsLabel.AutoSize = true;
+            currentDnsLabel.MaximumSize = new Size(830, 0);
+            networkPanel.Controls.Add(currentDnsLabel);
+
+            // Label d'état de connexion
+            Label connectionLabel = CreateStyledLabel("État : Vérification...", new Font("Segoe UI", 10F), TextLightColor);
+            connectionLabel.Name = "connectionLabel";
+            connectionLabel.Location = new Point(60, 95);
+            connectionLabel.AutoSize = true;
+            connectionLabel.MaximumSize = new Size(830, 0);
+            networkPanel.Controls.Add(connectionLabel);
+
+            return networkPanel;
+        }
+
+        private void CreateStatusPanel()
+        {
+            statusPanel = new Panel();
+            statusPanel.Size = new Size(this.ClientSize.Width, 90);
+            statusPanel.Location = new Point(0, this.ClientSize.Height - 90);
+            statusPanel.BackColor = Color.FromArgb(248, 249, 250);
+            statusPanel.Paint += (s, e) => {
+                using (Pen borderPen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                {
+                    e.Graphics.DrawLine(borderPen, 0, 0, statusPanel.Width, 0);
+                }
+            };
+
+            // Boutons d'action avec style moderne
+            Button applyButton = CreateStyledButton("Appliquer DNS", AccentColor, Color.White, new Size(140, 45));
+            applyButton.Location = new Point(25, 22);
+            applyButton.Click += ApplyButton_Click;
+            statusPanel.Controls.Add(applyButton);
+
+            Button resetButton = CreateStyledButton("DNS Automatique", WarningColor, Color.White, new Size(150, 45));
+            resetButton.Location = new Point(175, 22);
+            resetButton.Click += ResetButton_Click;
+            statusPanel.Controls.Add(resetButton);
+
+            Button refreshButton = CreateStyledButton("Actualiser", PrimaryColor, Color.White, new Size(120, 45));
+            refreshButton.Location = new Point(335, 22);
+            refreshButton.Click += RefreshButton_Click;
+            statusPanel.Controls.Add(refreshButton);
+
+            Button exitButton = CreateStyledButton("Quitter", Color.FromArgb(108, 117, 125), Color.White, new Size(100, 45));
+            exitButton.Location = new Point(870, 22);
+            exitButton.Click += (s, e) => this.Close();
+            statusPanel.Controls.Add(exitButton);
+
+            // Label de statut avec plus d'espace et sur deux lignes si nécessaire
+            statusLabel = CreateStyledLabel("Prêt", new Font("Segoe UI", 11F), TextLightColor);
+            statusLabel.Location = new Point(470, 25);
+            statusLabel.Name = "statusLabel";
+            statusLabel.AutoSize = true;
+            statusLabel.MaximumSize = new Size(390, 50);
+            statusPanel.Controls.Add(statusLabel);
+
+            // Label d'information supplémentaire
+            Label infoLabel = CreateStyledLabel("Application lancée avec privilèges administrateur",
+                new Font("Segoe UI", 9F), Color.FromArgb(127, 140, 141));
+            infoLabel.Name = "infoLabel";
+            infoLabel.Location = new Point(470, 50);
+            infoLabel.AutoSize = true;
+            infoLabel.MaximumSize = new Size(390, 0);
+            statusPanel.Controls.Add(infoLabel);
+
+            this.Controls.Add(statusPanel);
+        }
+
+        private Button CreateStyledButton(string text, Color backColor, Color foreColor, Size size)
+        {
+            Button button = new Button();
+            button.Text = text;
+            button.Size = size;
+            button.BackColor = backColor;
+            button.ForeColor = foreColor;
+            button.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(backColor, 0.1f);
+            button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(backColor, 0.1f);
+            button.Cursor = Cursors.Hand;
+
+            // Coins arrondis simulés avec Paint
+            button.Paint += (s, e) => {
+                Button btn = s as Button;
+                using (GraphicsPath path = new GraphicsPath())
+                {
+                    path.AddRoundedRectangle(btn.ClientRectangle, 4);
+                    btn.Region = new Region(path);
+                }
+            };
+
+            return button;
+        }
+
+        private Label CreateStyledLabel(string text, Font font, Color color)
+        {
+            Label label = new Label();
+            label.Text = text;
+            label.Font = font;
+            label.ForeColor = color;
+            label.AutoSize = true;
+            label.BackColor = Color.Transparent;
+            return label;
+        }
+
+        private void ShowStatusMessage(string message, Color color, bool showProgress = false)
+        {
+            if (statusLabel != null)
+            {
+                statusLabel.Text = message;
+                statusLabel.ForeColor = color;
+            }
+
+            Application.DoEvents();
+        }
+
+        // [Le reste des méthodes existantes restent inchangées]
         private void LoadCurrentDnsSettings()
         {
+            ShowStatusMessage("Chargement des paramètres réseau...", PrimaryColor);
+
             try
             {
                 activeNetworkInterface = GetActiveNetworkInterface();
@@ -199,12 +521,14 @@ namespace DNS4EU
                 {
                     GetCurrentDnsServers();
                     UpdateNetworkInfo();
+                    ShowStatusMessage("Prêt", TextLightColor);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Erreur lors du chargement des paramètres réseau : {ex.Message}",
                                "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ShowStatusMessage("Erreur lors du chargement", DangerColor);
             }
         }
 
@@ -260,22 +584,32 @@ namespace DNS4EU
         {
             Label networkLabel = this.Controls.Find("networkLabel", true).FirstOrDefault() as Label;
             Label currentDnsLabel = this.Controls.Find("currentDnsLabel", true).FirstOrDefault() as Label;
+            Label connectionLabel = this.Controls.Find("connectionLabel", true).FirstOrDefault() as Label;
 
             if (activeNetworkInterface != null)
             {
                 if (networkLabel != null)
-                    networkLabel.Text = $"Carte active : {activeNetworkInterface.Name}";
+                    networkLabel.Text = $"Interface : {activeNetworkInterface.Name} ({activeNetworkInterface.NetworkInterfaceType})";
 
                 if (currentDnsLabel != null)
-                    currentDnsLabel.Text = $"DNS actuels : {currentPrimaryDns} / {currentSecondaryDns}";
+                    currentDnsLabel.Text = $"DNS actuels : {currentPrimaryDns} • {currentSecondaryDns}";
+
+                if (connectionLabel != null)
+                {
+                    string connectionStatus = activeNetworkInterface.OperationalStatus == OperationalStatus.Up ? "✅ Connectée" : "❌ Déconnectée";
+                    connectionLabel.Text = $"État : {connectionStatus} - Vitesse : {(activeNetworkInterface.Speed / 1000000)} Mbps";
+                }
             }
             else
             {
                 if (networkLabel != null)
-                    networkLabel.Text = "Aucune carte réseau active détectée";
+                    networkLabel.Text = "❌ Aucune interface réseau active détectée";
 
                 if (currentDnsLabel != null)
                     currentDnsLabel.Text = "DNS : Non disponible";
+
+                if (connectionLabel != null)
+                    connectionLabel.Text = "État : Interface non disponible";
             }
         }
 
@@ -288,18 +622,26 @@ namespace DNS4EU
                 return;
             }
 
+            ShowStatusMessage("Application des paramètres DNS...", PrimaryColor);
+
             // Trouver le RadioButton sélectionné
             RadioButton selectedRadio = null;
-            foreach (Control control in this.Controls)
+            foreach (Control control in contentPanel.Controls)
             {
-                if (control is GroupBox groupBox)
+                if (control is Panel)
                 {
-                    foreach (Control gbControl in groupBox.Controls)
+                    foreach (Control panelControl in control.Controls)
                     {
-                        if (gbControl is RadioButton rb && rb.Checked)
+                        if (panelControl is Panel card)
                         {
-                            selectedRadio = rb;
-                            break;
+                            foreach (Control cardControl in card.Controls)
+                            {
+                                if (cardControl is RadioButton rb && rb.Checked)
+                                {
+                                    selectedRadio = rb;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -309,19 +651,21 @@ namespace DNS4EU
             {
                 try
                 {
-                    // Nouvelle méthode améliorée
                     SetDnsServersImproved(activeNetworkInterface, dnsServers[0], dnsServers[1]);
-                    MessageBox.Show($"DNS modifiés avec succès !\n\nPrimaire : {dnsServers[0]}\nSecondaire : {dnsServers[1]}",
+                    MessageBox.Show($"✅ DNS modifiés avec succès !\n\n📡 Primaire : {dnsServers[0]}\n📡 Secondaire : {dnsServers[1]}\n\n🔄 Les changements sont effectifs immédiatement.",
                                    "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
+                    ShowStatusMessage("DNS appliqués avec succès", AccentColor);
+
                     // Actualiser les informations
-                    System.Threading.Thread.Sleep(2000); // Augmenté à 2 secondes
+                    System.Threading.Thread.Sleep(2000);
                     LoadCurrentDnsSettings();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Erreur lors de l'application des DNS : {ex.Message}\n\nAssurez-vous d'exécuter l'application en tant qu'administrateur.",
+                    MessageBox.Show($"❌ Erreur lors de l'application des DNS :\n\n{ex.Message}\n\n🔐 Assurez-vous d'exécuter l'application en tant qu'administrateur.",
                                    "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ShowStatusMessage("Erreur lors de l'application", DangerColor);
                 }
             }
         }
@@ -335,11 +679,23 @@ namespace DNS4EU
                 return;
             }
 
+            ShowStatusMessage("Remise en mode automatique...", WarningColor);
+
             try
             {
-                ResetDnsToAutomaticImproved(activeNetworkInterface);
-                MessageBox.Show("DNS remis en automatique avec succès !", "Succès",
-                               MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Utiliser la méthode Windows netsh comme alternative plus fiable
+                bool success = ResetDnsUsingNetsh(activeNetworkInterface);
+
+                if (!success)
+                {
+                    // Fallback vers la méthode WMI améliorée
+                    ResetDnsToAutomaticImproved(activeNetworkInterface);
+                }
+
+                MessageBox.Show("✅ DNS remis en automatique avec succès !\n\n🔄 Votre système utilisera maintenant les DNS fournis par votre FAI ou DHCP.",
+                               "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                ShowStatusMessage("DNS remis en automatique", AccentColor);
 
                 // Actualiser les informations
                 System.Threading.Thread.Sleep(2000);
@@ -347,24 +703,66 @@ namespace DNS4EU
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur lors de la remise en automatique : {ex.Message}\n\nAssurez-vous d'exécuter l'application en tant qu'administrateur.",
+                MessageBox.Show($"❌ Erreur lors de la remise en automatique :\n\n{ex.Message}\n\n🔐 Assurez-vous d'exécuter l'application en tant qu'administrateur.",
                                "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ShowStatusMessage("Erreur lors de la remise en automatique", DangerColor);
+            }
+        }
+
+        // Méthode alternative utilisant netsh (plus fiable)
+        private bool ResetDnsUsingNetsh(NetworkInterface networkInterface)
+        {
+            try
+            {
+                string interfaceName = networkInterface.Name;
+
+                // Commande netsh pour remettre les DNS en automatique
+                var processInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "netsh",
+                    Arguments = $"interface ip set dns \"{interfaceName}\" dhcp",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using (var process = System.Diagnostics.Process.Start(processInfo))
+                {
+                    process.WaitForExit(10000); // Timeout de 10 secondes
+
+                    if (process.ExitCode == 0)
+                    {
+                        FlushDnsCache();
+                        return true;
+                    }
+                    else
+                    {
+                        string error = process.StandardError.ReadToEnd();
+                        throw new Exception($"Netsh a échoué : {error}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Si netsh échoue, on laissera la méthode WMI essayer
+                System.Diagnostics.Debug.WriteLine($"Netsh failed: {ex.Message}");
+                return false;
             }
         }
 
         private void RefreshButton_Click(object sender, EventArgs e)
         {
             LoadCurrentDnsSettings();
-            MessageBox.Show("Informations actualisées !", "Information",
+            MessageBox.Show("🔄 Informations actualisées avec succès !", "Information",
                            MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // Méthode améliorée pour définir les serveurs DNS
+        // [Toutes les autres méthodes de l'application originale restent inchangées]
         private void SetDnsServersImproved(NetworkInterface networkInterface, string primaryDns, string secondaryDns)
         {
             try
             {
-                // Méthode 1: Essayer avec l'ID de l'interface
                 string query = $"SELECT * FROM Win32_NetworkAdapterConfiguration WHERE InterfaceIndex={networkInterface.GetIPProperties().GetIPv4Properties().Index}";
 
                 using (ManagementObjectSearcher searcher = new ManagementObjectSearcher(query))
@@ -373,7 +771,6 @@ namespace DNS4EU
 
                     if (results.Count == 0)
                     {
-                        // Méthode 2: Essayer avec le nom de l'adaptateur
                         query = $"SELECT * FROM Win32_NetworkAdapterConfiguration WHERE Description LIKE '%{networkInterface.Description.Replace("'", "''")}%'";
                         searcher.Query = new ObjectQuery(query);
                         results = searcher.Get();
@@ -404,7 +801,6 @@ namespace DNS4EU
                     }
                 }
 
-                // Vider le cache DNS
                 FlushDnsCache();
             }
             catch (Exception ex)
@@ -413,7 +809,6 @@ namespace DNS4EU
             }
         }
 
-        // Méthode améliorée pour remettre les DNS en automatique
         private void ResetDnsToAutomaticImproved(NetworkInterface networkInterface)
         {
             try
@@ -436,7 +831,6 @@ namespace DNS4EU
                     {
                         if ((bool)mo["IPEnabled"])
                         {
-                            // Passer null pour remettre en automatique
                             ManagementBaseObject result = mo.InvokeMethod("SetDNSServerSearchOrder", null, null);
 
                             uint returnValue = (uint)result.Properties["returnValue"].Value;
@@ -455,7 +849,6 @@ namespace DNS4EU
                     }
                 }
 
-                // Vider le cache DNS
                 FlushDnsCache();
             }
             catch (Exception ex)
@@ -464,7 +857,6 @@ namespace DNS4EU
             }
         }
 
-        // Vider le cache DNS
         private void FlushDnsCache()
         {
             try
@@ -483,7 +875,6 @@ namespace DNS4EU
             }
         }
 
-        // Descriptions des codes d'erreur WMI
         private string GetWMIErrorDescription(uint errorCode)
         {
             switch (errorCode)
@@ -525,65 +916,41 @@ namespace DNS4EU
             }
         }
 
-        // Anciennes méthodes conservées comme fallback
-        private void SetDnsServers(string adapterName, string primaryDns, string secondaryDns)
-        {
-            string query = $"SELECT * FROM Win32_NetworkAdapterConfiguration WHERE Description='{adapterName.Replace("'", "''")}'";
-
-            using (ManagementObjectSearcher searcher = new ManagementObjectSearcher(query))
-            {
-                foreach (ManagementObject mo in searcher.Get())
-                {
-                    if ((bool)mo["IPEnabled"])
-                    {
-                        ManagementBaseObject newDNS = mo.GetMethodParameters("SetDNSServerSearchOrder");
-                        newDNS["DNSServerSearchOrder"] = new string[] { primaryDns, secondaryDns };
-                        ManagementBaseObject result = mo.InvokeMethod("SetDNSServerSearchOrder", newDNS, null);
-
-                        uint returnValue = (uint)result.Properties["returnValue"].Value;
-                        if (returnValue != 0)
-                        {
-                            throw new Exception($"Échec de la modification DNS. Code d'erreur : {returnValue}");
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        private void ResetDnsToAutomatic(string adapterName)
-        {
-            string query = $"SELECT * FROM Win32_NetworkAdapterConfiguration WHERE Description='{adapterName.Replace("'", "''")}'";
-
-            using (ManagementObjectSearcher searcher = new ManagementObjectSearcher(query))
-            {
-                foreach (ManagementObject mo in searcher.Get())
-                {
-                    if ((bool)mo["IPEnabled"])
-                    {
-                        ManagementBaseObject result = mo.InvokeMethod("SetDNSServerSearchOrder", null, null);
-
-                        uint returnValue = (uint)result.Properties["returnValue"].Value;
-                        if (returnValue != 0)
-                        {
-                            throw new Exception($"Échec de la remise en automatique. Code d'erreur : {returnValue}");
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
 
+            // Mise à jour du label d'information
+            Label infoLabel = this.Controls.Find("infoLabel", true).FirstOrDefault() as Label;
+
             // Vérification si l'application est exécutée en tant qu'administrateur
             if (!IsRunAsAdministrator())
             {
-                MessageBox.Show("⚠️ ATTENTION ⚠️\n\nPour modifier les paramètres DNS, cette application doit être exécutée en tant qu'administrateur.\n\nFaites un clic droit sur l'application et sélectionnez 'Exécuter en tant qu'administrateur'.",
-                               "Privilèges requis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowDialog("⚠️ PRIVILÈGES ADMINISTRATEUR REQUIS",
+                          "Pour modifier les paramètres DNS, cette application doit être exécutée en tant qu'administrateur.\n\n" +
+                          "🔐 Solution :\n" +
+                          "• Fermez l'application\n" +
+                          "• Faites un clic droit sur l'exécutable\n" +
+                          "• Sélectionnez 'Exécuter en tant qu'administrateur'\n\n" +
+                          "⚡ L'application continuera de fonctionner mais les modifications DNS échoueront.",
+                          MessageBoxIcon.Warning);
+                ShowStatusMessage("⚠️ Privilèges administrateur requis", WarningColor);
+
+                if (infoLabel != null)
+                    infoLabel.Text = "⚠️ Privilèges administrateur requis pour modifier les DNS";
             }
+            else
+            {
+                ShowStatusMessage("✅ Application lancée avec privilèges administrateur", AccentColor);
+
+                if (infoLabel != null)
+                    infoLabel.Text = "✅ Application lancée avec privilèges administrateur";
+            }
+        }
+
+        private void ShowDialog(string title, string message, MessageBoxIcon icon)
+        {
+            MessageBox.Show(message, title, MessageBoxButtons.OK, icon);
         }
 
         private bool IsRunAsAdministrator()
@@ -591,6 +958,58 @@ namespace DNS4EU
             var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
             var principal = new System.Security.Principal.WindowsPrincipal(identity);
             return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+
+            // Ajuster la position du panel de statut
+            if (statusPanel != null)
+            {
+                statusPanel.Location = new Point(0, this.ClientSize.Height - 90);
+                statusPanel.Size = new Size(this.ClientSize.Width, 90);
+            }
+
+            // Ajuster la largeur de l'en-tête
+            if (headerPanel != null)
+            {
+                headerPanel.Size = new Size(this.ClientSize.Width, 90);
+            }
+
+            // Ajuster la largeur du contenu
+            if (contentPanel != null)
+            {
+                contentPanel.Size = new Size(this.ClientSize.Width - 50, 580);
+            }
+        }
+    }
+
+    // Extension pour les coins arrondis
+    public static class GraphicsExtensions
+    {
+        public static void AddRoundedRectangle(this GraphicsPath path, Rectangle bounds, int radius)
+        {
+            int diameter = radius * 2;
+            Size size = new Size(diameter, diameter);
+            Rectangle arc = new Rectangle(bounds.Location, size);
+
+            // Coin supérieur gauche
+            path.AddArc(arc, 180, 90);
+
+            // Coin supérieur droit
+            arc.X = bounds.Right - diameter;
+            path.AddArc(arc, 270, 90);
+
+            // Coin inférieur droit
+            arc.Y = bounds.Bottom - diameter;
+            path.AddArc(arc, 0, 90);
+
+            // Coin inférieur gauche
+            arc.X = bounds.Left;
+            path.AddArc(arc, 90, 90);
+
+            path.CloseFigure();
         }
     }
 }
