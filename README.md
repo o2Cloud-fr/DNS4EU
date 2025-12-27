@@ -139,7 +139,7 @@ C# • WinForms • WMI • Network Management • DNS Configuration
 
 [Apache-2.0 license](https://github.com/o2Cloud-fr/DNS4EU/blob/main/LICENSE)
 
-![Logo](https://o2cloud.fr/logo/o2Cloud.png)
+![Logo](https://o2cloud.fr/logo/0.png)
 
 ## Related
 
